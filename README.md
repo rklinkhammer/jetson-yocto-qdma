@@ -121,7 +121,11 @@ licenses; it does not apply the old project's open-source-only build restriction
 
 The Docker image builds successfully. Full-image BitBake dry runs passed for
 Orin NX and the Orin Nano NVMe target, and real QDMA fetch/unpack/patch tasks
-passed. A complete image compilation and hardware boot have not been run.
+passed. After correcting the image dependency to install `qdma` (which pulls in
+its generated module package), a complete Orin NX image build passed, including
+rootfs creation, ext4 output, and the Tegra flashing archive. Its image manifest
+contains both the QDMA module and tools. A full Orin Nano build and hardware boot
+have not been verified.
 
 The hash-server configuration was checked with a real Unix-socket report/query
 from the build container, persistence across a server restart, both named-volume
