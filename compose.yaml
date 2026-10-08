@@ -1,12 +1,46 @@
 name: jetson-yocto-qdma
 services:
-  yocto:
+  hashserv:
     build: .
+    image: jetson-yocto-qdma:local
     platform: linux/amd64
     init: true
+    restart: unless-stopped
+    working_dir: /hashserv
+    environment:
+      HOST_UID: ${HOST_UID:-}
+      HOST_GID: ${HOST_GID:-}
+      HOST_GROUPS: ${HOST_GROUPS:-}
+    command: ["/opt/yocto/repos/bitbake/bin/bitbake-hashserv", "--bind", "unix:///hashserv/hashserv.sock", "--database", "/hashserv/hashserv.db"]
+    volumes:
+      - ${HASHSERVE_DIR:-hashserv}:/hashserv
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import sys; sys.path.insert(0, '/opt/yocto/repos/bitbake/lib'); import hashserv; c = hashserv.create_client('unix:///hashserv/hashserv.sock'); c.get_stats(); c.close()"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+  yocto:
+    build: .
+    image: jetson-yocto-qdma:local
+    platform: linux/amd64
+    init: true
+    depends_on:
+      hashserv:
+        condition: service_healthy
     environment:
       MACHINE: ${MACHINE:-p3768-0000-p3767-0000}
+      HOST_UID: ${HOST_UID:-}
+      HOST_GID: ${HOST_GID:-}
+      HOST_GROUPS: ${HOST_GROUPS:-}
     volumes:
       - .:/project
+      - ${HASHSERVE_DIR:-hashserv}:/hashserv:ro
     cpus: 4
     mem_limit: 12g
+volumes:
+  hashserv:

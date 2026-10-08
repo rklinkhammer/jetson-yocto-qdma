@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+export HOST_UID=$(id -u)
+export HOST_GID=$(id -g)
+export HOST_GROUPS=$(id -G | tr ' ' ',')
+if [[ $HOST_UID == 0 ]]; then
+    echo 'Run ./yocto as your normal user, not with sudo (BitBake rejects root).' >&2
+    exit 1
+fi
+exec docker compose run --build --rm yocto /bin/bash /project/build.sh "$@"

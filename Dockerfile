@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 # Ubuntu's existing non-root user is UID/GID 1000.
-RUN mkdir /opt/yocto && chown ubuntu:ubuntu /opt/yocto
+RUN mkdir /opt/yocto /hashserv && chown ubuntu:ubuntu /opt/yocto /hashserv
 USER ubuntu
 # One manifest pins all four upstream repositories to compatible revisions.
 ARG YOCTO_REV=6eab4529e8ba83231214677dc70f504ca1cb326f
@@ -19,6 +19,12 @@ RUN git -C /opt/yocto init \
     && git -C /opt/yocto checkout --detach FETCH_HEAD \
     && git -C /opt/yocto submodule update --init --depth 1 --jobs 4 \
        repos/bitbake repos/openembedded-core repos/meta-openembedded repos/meta-tegra
+USER root
+# Source checkouts are baked into the image and trusted for every build UID.
+RUN for repo in /opt/yocto /opt/yocto/repos/*; do \
+        git config --system --add safe.directory "$repo"; \
+    done
+COPY --chmod=755 container-entrypoint.sh /usr/local/bin/container-entrypoint
 WORKDIR /project
-ENTRYPOINT ["/bin/bash", "/project/build.sh"]
-CMD ["qdma-image"]
+ENTRYPOINT ["/usr/local/bin/container-entrypoint"]
+CMD ["/bin/bash", "/project/build.sh", "qdma-image"]
