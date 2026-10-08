@@ -1,0 +1,12 @@
+name: jetson-yocto-qdma
+services:
+  yocto:
+    build: .
+    platform: linux/amd64
+    init: true
+    environment:
+      MACHINE: ${MACHINE:-p3768-0000-p3767-0000}
+    volumes:
+      - .:/project
+    cpus: 4
+    mem_limit: 12g
