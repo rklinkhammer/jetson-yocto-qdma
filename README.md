@@ -1,7 +1,11 @@
 # Jetson Yocto + Xilinx QDMA
 
 One Docker container builds a minimal console image for Orin NX or Orin Nano,
-including the Xilinx QDMA PF kernel module and six QDMA userspace tools.
+including the Xilinx QDMA PF kernel module, six QDMA userspace tools, and
+Micro-USB serial console support through `l4t-usb-device-mode`.
+PCI diagnostics include the full `pciutils` package and PCI ID database, plus
+`pcimem` for PCI BAR access. The kernel enables PCIe, MSI, AER, SR-IOV, and IOMMU
+support.
 
 ## Build
 
@@ -16,6 +20,16 @@ Orin NX 16 GB on the NVIDIA P3768 carrier (default):
 ```sh
 ./yocto
 ```
+
+Orin NX 16 GB on the P3509 carrier with an NVMe root filesystem:
+
+```sh
+MACHINE=p3509-a02-p3767-0000 ./yocto
+```
+
+This target includes a USB device-role fallback matching NVIDIA's stock startup:
+if role detection leaves the console port at `none`, select `device` after the
+USB gadget starts. This allows Micro-USB serial login without a monitor.
 
 Orin Nano developer kit with an NVMe root filesystem:
 
@@ -112,7 +126,9 @@ QDMA is pinned to `b8466090b4e812e191da9e9305ffb11cb7ace768` with the existing
 ARM64 timestamp, Kbuild, compiler, and userspace fixes.
 
 This is a development image: serial-console root login has no password and no
-SSH server is added. QDMA is installed but not automatically loaded. Board PCIe
+SSH server is added. The Micro-USB device port exposes a USB ACM console
+(`/dev/ttyACM*` on a Linux host) and USB networking through the upstream
+`l4t-usb-device-mode` package. USB networking alone does not provide SSH access. QDMA is installed but not automatically loaded. Board PCIe
 routing, endpoint compatibility, and runtime DMA operation still need hardware
 validation. The image build includes NVIDIA BSP components under their upstream
 licenses; it does not apply the old project's open-source-only build restriction.
@@ -137,3 +153,12 @@ UID/GID with supplementary groups. Host file ownership, Git access, hash-server
 communication, database persistence across a user change, and BitBake environment
 initialization passed. Existing NFS permissions remain the host administrator's
 responsibility.
+
+## PCI0 overlay template
+
+The P3509 image includes a comment-only overlay source and compiled DTBO under
+`/usr/share/qdma/device-tree/`. It targets Orin controller C0 at
+`/bus@0/pcie@14180000` (PCI domain 0), which the base device tree leaves disabled.
+It does not enable that controller or identify the attached QDMA slot. The
+overlay is supplied as an editable template, not automatically applied at boot.
+Comments remain in the DTS source; compilation removes them from the DTBO.
