@@ -1,0 +1,8 @@
+#!/bin/sh
+# Match NVIDIA's fallback when USB role detection leaves the port unassigned.
+# Preserve an explicitly selected host or device role.
+role=/sys/class/usb_role/usb2-0-role-switch/role
+if [ -f "$role" ] && [ "$(cat "$role")" = none ]; then
+    echo "USB role is none; selecting device mode for the P3509 console"
+    echo device > "$role"
+fi
