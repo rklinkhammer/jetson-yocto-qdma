@@ -127,11 +127,11 @@ or modules from different builds. Build output symlinks move after later builds.
    scripts/prepare-installer-payload.sh "$release" work/installer-payload
    ```
 
-   Use a new output directory. This creates a 12 GB nominal sparse raw image and
+   Use a new output directory. This creates a sparse raw image (at least 12 GB
+   nominal, increased automatically for larger root filesystems) and
    compressed `nvme.img.gz`, with compressed, raw and bundle SHA-256 values in
    `release.json`. The script's offline signing step does not flash the Orin.
-   This image size supports the current release; larger future root filesystems
-   require increasing the payload size in the script before generating it.
+   The payload size includes room for boot partitions and filesystem growth.
 2. Plug an erasable USB stick of at least 16 GB into the **host**, and identify its
    persistent USB ID:
 

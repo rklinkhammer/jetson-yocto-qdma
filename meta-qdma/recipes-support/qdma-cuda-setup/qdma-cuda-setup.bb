@@ -8,7 +8,7 @@ COMPATIBLE_MACHINE = "tegra234"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 # libcuda needs the host1x DRM render node even without a display server.
-RDEPENDS:${PN} = "nv-kernel-module-nvgpu nv-kernel-module-tegra-drm"
+RDEPENDS:${PN} = "nv-kernel-module-nvgpu nv-kernel-module-tegra-drm tegra-configs-udev"
 
 do_install() {
     install -D -m 0644 ${S}/qdma-cuda.conf ${D}${nonarch_libdir}/modules-load.d/qdma-cuda.conf

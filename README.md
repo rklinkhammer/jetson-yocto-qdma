@@ -5,7 +5,7 @@ and checking the installed system, follow the
 [step-by-step installation guide](docs/INSTALLATION.md).
 Hardware test results are recorded in [installation validation](docs/INSTALLATION-VALIDATION.md).
 
-One Docker container builds a CUDA development console image for Orin NX or Orin Nano,
+One Docker container builds an Xfce desktop and CUDA development image for Orin NX or Orin Nano,
 including the Xilinx QDMA PF kernel module, six QDMA userspace tools, and
 Micro-USB serial console support through `l4t-usb-device-mode`.
 PCI diagnostics include the full `pciutils` package and PCI ID database, plus
@@ -17,7 +17,9 @@ CUDA-GDB and Compute Sanitizer), CUDA samples, cuDNN and TensorRT libraries and
 headers, TensorRT plugins/ONNX parser and `trtexec`. Native development tools
 include GCC/G++, make, CMake, Ninja, Git, GDB/gdbserver, strace and ltrace.
 These packages come from the pinned meta-tegra recipes; this remains a Yocto
-distribution rather than an Ubuntu/SDK Manager installation. No desktop is added.
+distribution rather than an Ubuntu/SDK Manager installation. The desktop adds
+Xfce, Firefox ESR (Mozilla’s official ARM64 binary), NetworkManager, audio controls, OpenSSH and common administration
+tools. See [desktop and SSH setup](docs/DESKTOP.md) for startup and login instructions.
 `qdma-cuda-setup` loads both `nvgpu` and NVIDIA's out-of-tree `tegra-drm` at
 boot. CUDA needs the host1x DRM render node even on a headless system; omitting
 `tegra-drm` caused `cudaGetDeviceCount` to return error 801 on the P3509.
@@ -183,15 +185,23 @@ NVIDIA kernel through [meta-tegra](https://github.com/OE4T/meta-tegra/tree/322bc
 QDMA is pinned to `b8466090b4e812e191da9e9305ffb11cb7ace768` with the existing
 ARM64 timestamp, Kbuild, compiler, and userspace fixes.
 
-This is a development image: serial-console root login has no password and no
-SSH server is added. The Micro-USB device port exposes a USB ACM console
+This is a development image: serial-console root login has no password. OpenSSH
+is included, but rejects empty passwords; configure a password or public key
+before remote login. The Micro-USB device port exposes a USB ACM console
 (`/dev/ttyACM*` on a Linux host) and USB networking through the upstream
-`l4t-usb-device-mode` package. USB networking alone does not provide SSH access. QDMA is installed but not automatically loaded. Board PCIe
+`l4t-usb-device-mode` package. The desktop user is `jetson`; local graphical autologin is enabled.
+QDMA is installed but not automatically loaded. Board PCIe
 routing, endpoint compatibility, and runtime DMA operation still need hardware
 validation. The image build includes NVIDIA BSP components under their upstream
 licenses; it does not apply the old project's open-source-only build restriction.
 
 ## Checked
+
+The Xfce desktop release passed all 13,101 build tasks and was installed online
+on the Orin NX. After reboot, Xfce, SSH, Ethernet and non-root CUDA development
+checks passed. Firefox rendering and Wi-Fi/Bluetooth detection were also checked.
+See [desktop setup and validation](docs/DESKTOP.md) for the release checksum,
+SSH credential setup and the limits of hardware testing.
 
 The CUDA development image was built for `p3509-a02-p3767-0000` and installed
 on the running Orin NX 16 GB through USB networking. Native `nvcc` 13.2 and
@@ -240,6 +250,7 @@ display modules at boot; CUDA's compute modules alone do not provide display out
 On the running Orin NX, installing these matching packages and connecting HDMI
 produced a working framebuffer console. Linux reported the HDMI connector as
 connected with 1920x1080 among the supported modes, and CUDA `deviceQuery` and
-`vectorAdd` still passed. This is a text-console image, without a desktop.
+`vectorAdd` still passed. Those checks were performed on the earlier console release;
+[desktop validation](docs/DESKTOP.md#validation) tracks the Xfce update.
 A subsequent clean recovery flash also booted with the HDMI framebuffer and USB
 console working. HDMI firmware-logo output has not been checked.

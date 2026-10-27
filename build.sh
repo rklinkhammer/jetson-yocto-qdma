@@ -12,7 +12,7 @@ cat > "$build/conf/bblayers.conf" <<'CONF'
 LCONF_VERSION = "7"
 BBPATH = "${TOPDIR}"
 BBFILES ?= ""
-BBLAYERS = "/opt/yocto/repos/openembedded-core/meta /opt/yocto/repos/meta-openembedded/meta-oe /opt/yocto/repos/meta-tegra /project/meta-qdma"
+BBLAYERS = "/opt/yocto/repos/openembedded-core/meta /opt/yocto/repos/meta-openembedded/meta-oe /opt/yocto/repos/meta-openembedded/meta-python /opt/yocto/repos/meta-openembedded/meta-networking /opt/yocto/repos/meta-openembedded/meta-multimedia /opt/yocto/repos/meta-openembedded/meta-gnome /opt/yocto/repos/meta-openembedded/meta-xfce /opt/yocto/repos/meta-tegra /project/meta-qdma"
 CONF
 printf 'MACHINE = "%s"\nrequire /project/local.conf\n' "$MACHINE" > "$build/conf/local.conf"
 export BITBAKEDIR=/opt/yocto/repos/bitbake

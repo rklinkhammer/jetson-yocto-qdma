@@ -11,10 +11,15 @@ output=$(realpath -m "$2")
 mkdir -p "$output/bundle"
 tar --zstd -xf "$release" -C "$output/bundle"
 grep -qx 'MACHINE="p3509-a02-p3767-0000"' "$output/bundle/.env.initrd-flash"
+# Reserve space for the root filesystem plus boot partitions and growth room.
+# make-sdcard interprets G as decimal GB and reserves one percent of that size.
+rootfs_bytes=$(stat -c %s "$output/bundle/qdma-image.ext4")
+image_gb=$(( (rootfs_bytes + 2147483648 + 989999999) / 990000000 ))
+(( image_gb >= 12 )) || image_gb=12
 (
     cd "$output/bundle"
     # Offline signing only; no Jetson is contacted by doexternal.sh.
-    ./doexternal.sh -s 12G "$output/nvme.img"
+    ./doexternal.sh -s "${image_gb}G" "$output/nvme.img"
 ) > "$output/prepare.log" 2>&1
 pigz -1 -k "$output/nvme.img"
 python3 - "$output" "$release" <<'PY'
