@@ -1,11 +1,64 @@
 # Jetson Yocto + Xilinx QDMA
 
-One Docker container builds a minimal console image for Orin NX or Orin Nano,
+One Docker container builds a CUDA development console image for Orin NX or Orin Nano,
 including the Xilinx QDMA PF kernel module, six QDMA userspace tools, and
 Micro-USB serial console support through `l4t-usb-device-mode`.
 PCI diagnostics include the full `pciutils` package and PCI ID database, plus
 `pcimem` for PCI BAR access. The kernel enables PCIe, MSI, AER, SR-IOV, and IOMMU
 support.
+
+The image also includes the NVIDIA GPU driver, CUDA toolkit (including `nvcc`,
+CUDA-GDB and Compute Sanitizer), CUDA samples, cuDNN and TensorRT libraries and
+headers, TensorRT plugins/ONNX parser and `trtexec`. Native development tools
+include GCC/G++, make, CMake, Ninja, Git, GDB/gdbserver, strace and ltrace.
+These packages come from the pinned meta-tegra recipes; this remains a Yocto
+distribution rather than an Ubuntu/SDK Manager installation. No desktop is added.
+`qdma-cuda-setup` loads both `nvgpu` and NVIDIA's out-of-tree `tegra-drm` at
+boot. CUDA needs the host1x DRM render node even on a headless system; omitting
+`tegra-drm` caused `cudaGetDeviceCount` to return error 801 on the P3509.
+Login shells also receive the CUDA and TensorRT tool directories in `PATH`.
+
+`tegra-redundant-boot` is required even for the single NVMe root filesystem:
+its `nv_update_verifier` service confirms a successful boot to NVIDIA firmware.
+Without it, the firmware can exhaust its boot retries and select recovery.
+
+## CUDA development on the Jetson
+
+For the currently pinned CUDA 13.2 recipes, set up a console session with:
+
+```sh
+export PATH=/usr/local/cuda-13.2/bin:$PATH
+export CUDACXX=/usr/local/cuda-13.2/bin/nvcc
+. /environment-setup.d/cuda_target.sh
+nvcc --version
+/usr/bin/cuda-samples/deviceQuery
+/usr/bin/cuda-samples/vectorAdd
+/usr/src/tensorrt/bin/trtexec --help
+```
+
+The pinned layer provides compatibility headers for its newer glibc. For native
+CUDA compilation, include them explicitly and select Orin's GPU architecture:
+
+```sh
+nvcc -arch=sm_87 -isystem /usr/include/cuda-compat-workarounds example.cu -o example
+```
+
+With this repository on the Jetson, the combined hardware smoke test is:
+
+```sh
+nvcc -std=c++17 -arch=sm_87 -isystem /usr/include/cuda-compat-workarounds \
+    scripts/gpu-smoke-test.cu -lcudnn -lnvinfer -o /tmp/gpu-smoke-test
+/tmp/gpu-smoke-test
+```
+
+It checks a CUDA kernel result, cuDNN handle creation and TensorRT builder
+creation. It does not benchmark performance or validate a complete AI model.
+Run `sh scripts/validate-gpu.sh` for this test plus NVIDIA's `deviceQuery` and
+`vectorAdd` samples and tool-version checks.
+
+Image build success verifies packaging; GPU execution and native compilation
+must also be checked on the Jetson after installing the new image. Existing
+NVMe installations and previously made USB sticks are not updated by a build.
 
 ## Build
 
@@ -134,6 +187,15 @@ validation. The image build includes NVIDIA BSP components under their upstream
 licenses; it does not apply the old project's open-source-only build restriction.
 
 ## Checked
+
+The CUDA development image was built for `p3509-a02-p3767-0000` and installed
+on the running Orin NX 16 GB through USB networking. Native `nvcc` 13.2 and
+GCC 15.3 compilation, CUDA `deviceQuery` and `vectorAdd`, cuDNN 9.20 handle
+creation, TensorRT 10.16 builder creation, and `trtexec --help` passed. The
+same GPU tests passed after a normal NVMe reboot, with automatic GPU/DRM
+module loading, working USB console, and successful boot verification.
+This does not validate AI model accuracy, sustained performance, or QDMA-to-GPU
+transfers.
 
 The Docker image builds successfully. Full-image BitBake dry runs passed for
 Orin NX and the Orin Nano NVMe target, and real QDMA fetch/unpack/patch tasks
