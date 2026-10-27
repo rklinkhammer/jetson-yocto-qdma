@@ -148,7 +148,13 @@ Firefox reports that the kernel's AppArmor policy denies creation of an
 unprivileged user namespace. Rendering works; the policy was not disabled.
 Browser sandbox parity with Ubuntu has not been validated.
 
+The SanDisk installer USB was rebuilt on 2026-10-27 with this desktop payload
+and maintenance image `qdma-installer-image-p3509-a02-p3767-0000.rootfs-20261027104523.tegraflash-tar.zst`.
+The maintenance image build passed all 5,811 tasks. The payload's compressed and
+decompressed SHA-256 hashes were verified by reading back from USB. The stick
+also includes this repository and instructions under `/opt/jetson-yocto-qdma`.
+
 This desktop archive has not undergone another clean flash or USB installation
-cycle. The existing physical installer stick retains the earlier console image;
-prepare a new payload and rewrite the stick using the installation guide when
-that media is needed.
+cycle. Host readback checks do not establish that the newly written stick boots
+or that installation completes on the Orin. Follow the installation guide to
+boot the USB, run `qdma-install --dry-run`, and explicitly start installation.
