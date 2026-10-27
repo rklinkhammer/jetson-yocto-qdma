@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Install a checksummed release from USB; never run from the target disk."""
+import argparse
+import datetime
+import gzip
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def run(*args):
+    return subprocess.check_output(args, text=True).strip()
+
+
+def digest(path, length=None):
+    h = hashlib.sha256()
+    with open(path, 'rb') as stream:
+        remaining = length
+        while remaining is None or remaining > 0:
+            block = stream.read(min(8 << 20, remaining) if remaining is not None else 8 << 20)
+            if not block:
+                if remaining:
+                    raise RuntimeError('Unexpected end of device/image')
+                break
+            h.update(block)
+            if remaining is not None:
+                remaining -= len(block)
+    return h.hexdigest()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--confirm-serial', help='Explicit authorization to erase this NVMe serial')
+    args = parser.parse_args()
+    if os.geteuid() != 0:
+        raise RuntimeError('Run as root')
+    payload = Path('/opt/qdma-installer')
+    if not Path('/etc/qdma-usb-installer').exists():
+        raise RuntimeError('Boot the prepared installer USB first')
+    metadata = json.loads((payload / 'release.json').read_text())
+    machine = Path('/usr/share/qdma-installer/machine').read_text().strip()
+    if machine != metadata['machine'] or machine != 'p3509-a02-p3767-0000':
+        raise RuntimeError('Unsupported machine or payload mismatch')
+    root = run('findmnt', '-n', '-o', 'SOURCE', '/').split('[')[0]
+    parent = run('lsblk', '-dn', '-o', 'PKNAME', root)
+    if not parent or run('lsblk', '-dn', '-o', 'TRAN', '/dev/' + parent) != 'usb':
+        raise RuntimeError('Installer root must be a USB partition')
+    if run('findmnt', '-n', '-o', 'SOURCE', '--target', str(payload)) != root:
+        raise RuntimeError('Payload must reside on the installer USB')
+    target = '/dev/nvme0n1'
+    devices = json.loads(run('lsblk', '-J', '-b', '-o', 'NAME,TYPE,SIZE,SERIAL,TRAN,MOUNTPOINTS', target))
+    disk = devices['blockdevices'][0]
+    serial = disk['serial'].strip()
+    if disk['type'] != 'disk' or disk['tran'] != 'nvme' or int(disk['size']) < metadata['raw_bytes']:
+        raise RuntimeError('Target must be an NVMe disk large enough for the image')
+    def check_unused(node):
+        if any(node.get('mountpoints') or []):
+            raise RuntimeError('Target or a child partition is mounted/in use')
+        if list(Path('/sys/class/block', node['name'], 'holders').iterdir()):
+            raise RuntimeError('Target has an active block-device holder')
+        for child in node.get('children', []):
+            check_unused(child)
+    check_unused(disk)
+    print(f"Release: {metadata['release']}\nTarget: {target}, serial {serial}, {disk['size']} bytes", flush=True)
+    image = payload / 'nvme.img.gz'
+    print('Verifying installation payload...', flush=True)
+    if digest(image) != metadata['gzip_sha256']:
+        raise RuntimeError('Payload checksum mismatch; target untouched')
+    if args.dry_run:
+        print('Preflight passed. No storage written.')
+        return
+    if args.confirm_serial != serial:
+        if args.confirm_serial is not None:
+            raise RuntimeError('Confirmation serial does not match target')
+        if input(f'This erases all NVMe contents. Type ERASE {serial}: ') != f'ERASE {serial}':
+            raise RuntimeError('Installation cancelled')
+    check_unused(json.loads(run('lsblk', '-J', '-o', 'NAME,MOUNTPOINTS', target))['blockdevices'][0])
+    written = 0
+    h = hashlib.sha256()
+    print('Writing NVMe...', flush=True)
+    with gzip.open(image, 'rb') as src, open(target, 'wb', buffering=0) as dst:
+        while True:
+            data = src.read(8 << 20)
+            if not data:
+                break
+            if written + len(data) > metadata['raw_bytes']:
+                raise RuntimeError('Payload exceeds declared size')
+            dst.write(data)
+            h.update(data)
+            written += len(data)
+            if written % (512 << 20) == 0:
+                print(f'Written {written // (1 << 20)} MiB', flush=True)
+        os.fsync(dst.fileno())
+    if written != metadata['raw_bytes'] or h.hexdigest() != metadata['raw_sha256']:
+        raise RuntimeError('Raw image checksum mismatch; installation incomplete')
+    print('Verifying NVMe readback...', flush=True)
+    run('blockdev', '--flushbufs', target)
+    if digest(target, written) != metadata['raw_sha256']:
+        raise RuntimeError('NVMe readback checksum mismatch')
+    run('sgdisk', '-e', target)
+    info = run('sgdisk', '-i', '1', target)
+    start = re.search(r'First sector: (\d+)', info).group(1)
+    guid = re.search(r'Partition unique GUID: (\S+)', info).group(1)
+    run('sgdisk', '-d', '1', '-n', f'1:{start}:0', '-t', '1:8300', '-c', '1:APP', '-u', f'1:{guid}', target)
+    run('blockdev', '--rereadpt', target)
+    run('udevadm', 'settle')
+    check = subprocess.run(['e2fsck', '-f', '-p', target + 'p1'])
+    if check.returncode not in (0, 1):
+        raise RuntimeError('Filesystem check failed')
+    run('resize2fs', target + 'p1')
+    mountpoint = Path('/mnt/qdma-target')
+    mountpoint.mkdir(parents=True, exist_ok=True)
+    run('mount', target + 'p1', str(mountpoint))
+    try:
+        receipt = dict(metadata, installed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                       target_serial=serial, source='USB installer', readback_verified=True)
+        (mountpoint / 'etc/qdma-install.json').write_text(json.dumps(receipt, indent=2) + '\n')
+        run('sync')
+    finally:
+        run('umount', str(mountpoint))
+    # Add an explicit NVMe boot entry. The installer USB is never selected here.
+    run('efibootmgr', '-c', '-d', target, '-p', '10', '-L', 'Yocto NVMe', '-l', '\\EFI\\BOOT\\bootaa64.efi')
+    entries = run('efibootmgr')
+    boot = re.search(r'^Boot([0-9A-Fa-f]{4})\*? Yocto NVMe', entries, re.M)
+    if not boot:
+        raise RuntimeError('Could not find the new NVMe boot entry')
+    run('efibootmgr', '-n', boot.group(1))
+    (payload / 'last-install.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    run('sync')
+    print('INSTALLATION PASSED: payload and NVMe readback verified; root filesystem expanded.\n'
+          'Run poweroff, remove the installer USB, then power on normally.', flush=True)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f'INSTALLATION FAILED: {exc}', file=sys.stderr)
+        sys.exit(1)

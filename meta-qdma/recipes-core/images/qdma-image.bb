@@ -19,3 +19,8 @@ IMAGE_FEATURES += "tools-sdk"
 IMAGE_FEATURES += "allow-empty-password empty-root-password allow-root-login"
 
 IMAGE_INSTALL:append:p3509-a02-p3767-0000 = " p3509-usb-device-role pci0-comment-overlay"
+# The compute GPU modules do not provide HDMI scanout. Include the display
+# modules and upstream module-loading configuration for the P3509 HDMI output.
+IMAGE_INSTALL:append:p3509-a02-p3767-0000 = " nvidia-kernel-oot-display tegra-configs-display-driver"
+# USB installer media and maintenance of the installed NVMe filesystem.
+IMAGE_INSTALL:append:p3509-a02-p3767-0000 = " kernel-module-uas efibootmgr e2fsprogs-resize2fs"

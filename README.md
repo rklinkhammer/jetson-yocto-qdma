@@ -1,5 +1,10 @@
 # Jetson Yocto + Xilinx QDMA
 
+For initial setup, a clean recovery flash, creating a USB-to-NVMe installer,
+and checking the installed system, follow the
+[step-by-step installation guide](docs/INSTALLATION.md).
+Hardware test results are recorded in [installation validation](docs/INSTALLATION-VALIDATION.md).
+
 One Docker container builds a CUDA development console image for Orin NX or Orin Nano,
 including the Xilinx QDMA PF kernel module, six QDMA userspace tools, and
 Micro-USB serial console support through `l4t-usb-device-mode`.
@@ -224,3 +229,17 @@ The P3509 image includes a comment-only overlay source and compiled DTBO under
 It does not enable that controller or identify the attached QDMA slot. The
 overlay is supplied as an editable template, not automatically applied at boot.
 Comments remain in the DTS source; compilation removes them from the DTBO.
+
+## P3509 display output
+
+Use HDMI with the `p3509-a02-p3767-0000` image. Its current display configuration
+exposes HDMI only, not the carrier's DisplayPort connector. The image includes
+`nvidia-kernel-oot-display` and `tegra-configs-display-driver` to load NVIDIA's
+display modules at boot; CUDA's compute modules alone do not provide display output.
+
+On the running Orin NX, installing these matching packages and connecting HDMI
+produced a working framebuffer console. Linux reported the HDMI connector as
+connected with 1920x1080 among the supported modes, and CUDA `deviceQuery` and
+`vectorAdd` still passed. This is a text-console image, without a desktop.
+A subsequent clean recovery flash also booted with the HDMI framebuffer and USB
+console working. HDMI firmware-logo output has not been checked.

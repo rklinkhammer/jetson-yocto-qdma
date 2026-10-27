@@ -2,3 +2,5 @@
 /downloads/
 /sstate-cache/
 /.env
+/work/
+__pycache__/
