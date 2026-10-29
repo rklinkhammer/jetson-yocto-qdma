@@ -1,0 +1,15 @@
+{
+  "base_fdt": "/boot/dtb/tegra234-p3768-0000+p3767-0000-nv-super.dtb",
+  "removed_from_nodes": [],
+  "nodes_checked": 1212,
+  "power_down_absent": true,
+  "clock_request_disabled_on": "/bus@0/pcie@14180000",
+  "target_status": "disabled",
+  "sha256": {
+    "base.dtb": "5a923611e1dcc88b20a633c3800296c868828172acbaf38ec470adc25816ca4a",
+    "base-no-power-down.dtb": "5a923611e1dcc88b20a633c3800296c868828172acbaf38ec470adc25816ca4a",
+    "pci0-clock-request.dts": "300a555e40e0b2daeefda15511afb7d7468908c7f155a692adb28656297ad4d2",
+    "pci0-clock-request.dtbo": "0d2874343561f5bd05e308426e510fcacfe1cddb507f0ea8c9591b3ff3d2f46d",
+    "pcie-c0-no-power-down.dtb": "6a54802640593b7f0bd43e9c1ae289ec7932a356f32228abe4b6106ed3604fbf"
+  }
+}

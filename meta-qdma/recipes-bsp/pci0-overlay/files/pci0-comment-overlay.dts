@@ -7,8 +7,8 @@
         // This is not necessarily Linux bus 0000:00 or the active QDMA slot.
         target-path = "/bus@0/pcie@14180000";
         __overlay__ {
-            // PCI0 host bridge: reserved location for future device modifiers.
-            // Comment only: preserve status, lanes, ranges and IOMMU settings.
+            // Disable CLKREQ handling for controller C0. Preserve its enable state.
+            nvidia,disable-clock-request;
         };
     };
 };

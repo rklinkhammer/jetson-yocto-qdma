@@ -12,6 +12,10 @@ IMAGE_INSTALL:append = " \
     tensorrt-plugins-prebuilt tensorrt-plugins-prebuilt-dev tensorrt-trtexec-prebuilt \
     cmake ninja git gdb gdbserver strace ltrace pkgconfig \
 "
+# Device-tree compiler, FDT utilities, comparison/conversion helpers and C headers.
+IMAGE_INSTALL:append = " dtc dtc-misc dtc-dev"
+# Native rebuilds of the packaged QDMA tools and external kernel module.
+IMAGE_INSTALL:append = " qdma-sources libaio-dev kernel-devsrc elfutils-dev patch perl"
 # Native C/C++ compiler, libc headers, make and related development tools.
 IMAGE_FEATURES += "tools-sdk"
 IMAGE_INSTALL:append = " packagegroup-core-x11 packagegroup-xfce-base dbus liberation-fonts"

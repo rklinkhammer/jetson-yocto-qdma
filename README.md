@@ -231,14 +231,30 @@ communication, database persistence across a user change, and BitBake environmen
 initialization passed. Existing NFS permissions remain the host administrator's
 responsibility.
 
+## Native QDMA development
+
+The image includes the patched QDMA Linux driver and utility sources under
+`/usr/src/qdma`, the five applied patches, native build instructions and a helper
+script. `libaio-dev` and the matching `kernel-devsrc` are explicitly installed.
+Copy `/usr/src/qdma` to a writable working directory and run `sh build-tools.sh`
+to rebuild all six user-space utilities without replacing the packaged binaries.
+See `/usr/src/qdma/README.md` for the separate kernel-module build procedure.
+
+## Device-tree development
+
+The image includes the DTC compiler, FDT editing/overlay tools, YAML output,
+comparison/conversion utilities and libfdt development headers. See
+[device-tree instructions](docs/DEVICE-TREE.md) for compilation and validation.
+
 ## PCI0 overlay template
 
-The P3509 image includes a comment-only overlay source and compiled DTBO under
-`/usr/share/qdma/device-tree/`. It targets Orin controller C0 at
-`/bus@0/pcie@14180000` (PCI domain 0), which the base device tree leaves disabled.
-It does not enable that controller or identify the attached QDMA slot. The
-overlay is supplied as an editable template, not automatically applied at boot.
-Comments remain in the DTS source; compilation removes them from the DTBO.
+The PCI0 overlay source now adds `nvidia,disable-clock-request` to controller C0
+at `/bus@0/pcie@14180000`, preserving its disabled status. It is not automatically
+activated. The prepared [PCI0 boot configuration](boot-config/pcie-c0/README.md)
+contains a compiled overlay, a merged DTB verified free of
+`nvidia,enable-power-down`, a matching extlinux configuration and installation/
+rollback instructions. Previously built images retain the comment-only template;
+the updated recipe takes effect on the next image build.
 
 ## P3509 display output
 
